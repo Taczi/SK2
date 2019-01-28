@@ -12,14 +12,13 @@
 #include <time.h>
 #include <pthread.h>
 
-#define SERVER_PORT 1122
 #define USER_QUEUE_SIZE 8 //user_number
 #define ROOM_QUEUE_SIZE 4 //user_number
-#define MAX_MSG_LEN 4096
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-char buffer[MAX_MSG_LEN];
+char buffer[3];
 
 //struktura zawierajaca dane, ktore zostana przekazane do watku
 struct thread_data_t
@@ -42,8 +41,7 @@ struct Room
     int turn;
     int roomId;
     int users;
-    int sent;
-    int now;
+    int s;
     struct User ingame[2];
     struct User lastplayer[2];
 };
@@ -54,12 +52,40 @@ int roomsCreated = 0;
 struct User usersCount[USER_QUEUE_SIZE];
 int usersCreated = 0;
 
+void add_user()
+{
+    pthread_mutex_lock(&count_mutex);
+    usersCreated = usersCreated + 1;
+    pthread_mutex_unlock(&count_mutex);
+}
+
+void remove_user()
+{
+    pthread_mutex_lock(&count_mutex);
+    usersCreated = usersCreated - 1;
+    pthread_mutex_unlock(&count_mutex);
+}
+
+void add_room()
+{
+    pthread_mutex_lock(&count_mutex);
+    roomsCreated = roomsCreated + 1;
+    pthread_mutex_unlock(&count_mutex);
+}
+
+void remove_room()
+{
+    pthread_mutex_lock(&count_mutex);
+    roomsCreated = roomsCreated - 1;
+    pthread_mutex_unlock(&count_mutex);
+}
+
 void MUser(struct thread_data_t *thread_data)
 {
     memset(usersCount[usersCreated].ip, 0, 15);
     memcpy(usersCount[usersCreated].ip, inet_ntoa((struct in_addr) thread_data->caddr.sin_addr), 15);
     usersCount[usersCreated].fd = thread_data->cfd;
-    usersCreated++;
+    add_user();
     usersCount[usersCreated].id = usersCreated;
 }
 
@@ -83,10 +109,7 @@ void MRoom(struct thread_data_t *thread_data)
 	    roomsCount[i].turn++;
             pthread_mutex_unlock(&mutex);
             strcpy(buffer, "w");
-	    //write(thread_data->cfd, "w", 1);
 	    send(thread_data->cfd, buffer, strlen(buffer), 0);
-            //send(thread_data->cfd, "j"); //joint
-            //SendMessage(thread_data->cfd, "w"); //white
             bzero(&buffer, sizeof buffer);
             return;
         }
@@ -101,24 +124,25 @@ void MRoom(struct thread_data_t *thread_data)
                 if (usersCount[j].fd == thread_data->cfd)
                     roomsCount[i].ingame[0] = usersCount[j];
 
-            roomsCreated++;
+            add_room();
+	    roomsCount[i].s = 0;
             pthread_mutex_unlock(&mutex);
             strcpy(buffer, "b");
-	    //write(thread_data->cfd, "b", 1);
 	    send(thread_data->cfd, buffer, strlen(buffer), 0);
-            //SendMessage(thread_data->cfd, "s"); //join
-            //SendMessage(thread_data->cfd, "b"); //black
             bzero(&buffer, sizeof buffer);
             return;
         }
     }
-    //SendMessage(thread_data->cfd, "n");
-    //printf("Brak wolnych pokoi");
+    pthread_mutex_unlock(&mutex);
+    strcpy(buffer, "o");
+    send(thread_data->cfd, buffer, strlen(buffer), 0);
+    bzero(&buffer, sizeof buffer);
 }
 
 int RGame(struct thread_data_t *thread_data){
     int i, j;
-    
+    int read_size;
+
     for (i = 0; i < ROOM_QUEUE_SIZE; i++)
     {
         for (j = 0; j< 2; j++){
@@ -126,32 +150,31 @@ int RGame(struct thread_data_t *thread_data){
             {
                 if (roomsCount[i].turn == 0)
                 {
-	  	    bzero(&buffer, sizeof buffer);
-		    while(recv(thread_data->cfd, buffer, MAX_MSG_LEN, 0) > 0)
+		    bzero(&buffer, sizeof buffer);
+		    while(read_size = recv(thread_data->cfd, buffer, 3, 0) > 0)
 		    {
 			send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
 			bzero(&buffer, sizeof buffer);
-
-				//if(strcmp(buffer, "q") == 0 || strcmp(buffer,"d") == 0)
-				//{
-				//	roomsCount[i].now = 0;
-				//} 
-		    } 
+		    }
+ 
                 }
                 //else 
 		if (roomsCount[i].turn == 1)
                 {
-	  	    bzero(&buffer, sizeof buffer);
-		    while(recv(thread_data->cfd, buffer, MAX_MSG_LEN, 0) > 0)
+		    bzero(&buffer, sizeof buffer);
+		    while(read_size = recv(thread_data->cfd, buffer, 3, 0) > 0)
 		    {
+			/*if(read_size == 0)
+            		{
+                		puts("Client disconnected");
+                		fflush(stdout);
+            		}
+			else if(read_size == -1)
+            		{
+                		perror("recv failed");
+           		}*/
 			send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
 			bzero(&buffer, sizeof buffer);
-
-				//if(strcmp(buffer, "q") == 0 || strcmp(buffer,"d") == 0)
-				//{
-				//	roomsCount[i].now = 0;
-				//}
-		    }
                 }
          }
       }
@@ -205,34 +228,6 @@ void handleConnection(int server_socket_descriptor) {
 }
 
 
-/*void SendMessage(int fd, char * buffer)
-//void SendMessage(int receiverFd, char buffer[50])
-{
-    send(fd, buffer,sizeof(&buffer)), count, 0);
-    //write(receiverFd, buffer, sizeof(&buffer));
-}*/
-
-/*void MakeOpportunity(struct thread_data_t *thread_data){
-int i, j;
-    for (i = 0; i < ROOM_QUEUE_SIZE; i++)
-    {
-        for (j = 0; j< 2; j++)
-            if (roomsCount[i].ingame[j].fd == thread_data->cfd)
-            {
-                if (roomsCount[i].turn == 1)
-                {
-                    SendMessage(roomsCount[i].ingame[1].fd, "a");
-                    roomsCount[i].turn = 2;
-                }
-                else if (roomsCount[i].turn == 2)
-                {
-                    SendMessage(roomsCount[i].ingame[0].fd, "b", 1);
-                    roomsCount[i].turn = 1;
-                }
-            }
-    }
-}*/
-
 int main(int argc, char* argv[])
 {
    int server_socket_descriptor;
@@ -244,14 +239,10 @@ int main(int argc, char* argv[])
 
    //inicjalizacja gniazda serwera
    memset(&roomsCount, 0, sizeof(struct Room));
-   /*for (int i = 0; i < ROOM_QUEUE_SIZE; i++){
-        roomsCount[i].turn = 1;
-	roomsCount[i].sent = 2;
-	roomsCount[i].now = 1;}*/
    memset(&server_address, 0, sizeof(struct sockaddr));
    server_address.sin_family = PF_INET;
    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-   server_address.sin_port = htons(SERVER_PORT);
+   server_address.sin_port = htons(atoi(argv[1]));
 
    server_socket_descriptor = socket(PF_INET, SOCK_STREAM, 0);
    if (server_socket_descriptor < 0)
@@ -278,10 +269,8 @@ printf("ok");
 
    while(1)
    {
-       
 
-
-handleConnection(server_socket_descriptor);
+	handleConnection(server_socket_descriptor);
 
    }
 
