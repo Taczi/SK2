@@ -41,9 +41,7 @@ struct Room
     int turn;
     int roomId;
     int users;
-    int s;
     struct User ingame[2];
-    struct User lastplayer[2];
 };
 
 struct Room roomsCount[ROOM_QUEUE_SIZE];
@@ -55,17 +53,18 @@ int usersCreated = 0;
 void add_user()
 {
     pthread_mutex_lock(&count_mutex);
-    usersCreated = usersCreated + 1;
+    usersCreated = usersCreated + 1; //nie chcemy aby ktoś miał to samo id co my
     pthread_mutex_unlock(&count_mutex);
 }
 
 void add_room()
 {
     pthread_mutex_lock(&count_mutex);
-    roomsCreated = roomsCreated + 1;
+    roomsCreated = roomsCreated + 1; //nie chcemy aby powstały dwa pokoje o tym samym id
     pthread_mutex_unlock(&count_mutex);
 }
 
+//funkcja tworzenia gracza
 void MUser(struct thread_data_t *thread_data)
 {
     memset(usersCount[usersCreated].ip, 0, 15);
@@ -75,7 +74,7 @@ void MUser(struct thread_data_t *thread_data)
     usersCount[usersCreated].id = usersCreated;
 }
 
-
+//funkcja pokoju
 int MRoom(struct thread_data_t *thread_data)
 {
     int i, j;
@@ -84,7 +83,7 @@ int MRoom(struct thread_data_t *thread_data)
 
     for (i = 0; i < ROOM_QUEUE_SIZE; i++)
     {
-        if (roomsCount[i].users == 1)
+        if (roomsCount[i].users == 1) //jeśli ktoś jest w pokoju dołącze
         {
             
             for (j = 0; j < USER_QUEUE_SIZE; j++)
@@ -100,7 +99,7 @@ int MRoom(struct thread_data_t *thread_data)
             return 0;
         }
 	
-        else if (roomsCount[i].users == 0)
+        else if (roomsCount[i].users == 0) //nie ma niepełnych pokoi więc stworze swój
         {
 	    pthread_mutex_unlock(&mutex);
             roomsCount[i].roomId = roomsCreated;
@@ -119,6 +118,7 @@ int MRoom(struct thread_data_t *thread_data)
             return 0;
         }
     }
+    //nie ma miejsca na pokój dla mnie
     pthread_mutex_unlock(&mutex);
     strcpy(buffer, "o"); //brak gry
     send(thread_data->cfd, buffer, strlen(buffer), 0);
@@ -127,44 +127,44 @@ int MRoom(struct thread_data_t *thread_data)
     return 1;
 }
 
+//funkcja wymiany wiadomosci
 int RGame(struct thread_data_t *thread_data){
     int i, j;
 
     for (i = 0; i < ROOM_QUEUE_SIZE; i++)
     {
         for (j = 0; j< 2; j++){
-            if (roomsCount[i].ingame[j].fd == thread_data->cfd)
+            if (roomsCount[i].ingame[j].fd == thread_data->cfd) //szukam siebie wśród innych
             {
-                if (roomsCount[i].turn == 0)
+                if (roomsCount[i].turn == 0) //jestem graczem który stworzył pokój
                 {
 		    bzero(&buffer, sizeof buffer);
-		    while(recv(thread_data->cfd, buffer, 3, 0) > 0) //wysyła co dostał
+		    while(recv(thread_data->cfd, buffer, 3, 0) > 0) //wysyłam przeciwnikowi moja wiadomość
 		    {
 			send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
 			bzero(&buffer, sizeof buffer);
 		    }
-		    if(recv(thread_data->cfd, buffer, 3, 0) == 0) //rozłączył się 
+		    if(recv(thread_data->cfd, buffer, 3, 0) == 0) //rozłączam się 
 		    {
-			strcpy(buffer, "d");
+			strcpy(buffer, "d"); 
 	    		send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
             		bzero(&buffer, sizeof buffer);
-			close(thread_data->cfd);
-			roomsCount[i].users = 0;
+			roomsCount[i].users = 0; //zamykam pokój
+			close(thread_data->cfd); //koniec wątku
 			return 1;
 		    }
-		    if(recv(thread_data->cfd, buffer, 3, 0) < 0) //nie może się połaczyć
+		    if(recv(thread_data->cfd, buffer, 3, 0) < 0) //nie mogę się połaczyć
 		    {
 			strcpy(buffer, "e");
 	    		send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
             		bzero(&buffer, sizeof buffer);
-			close(thread_data->cfd);
-			roomsCount[i].users = 0;
+			roomsCount[i].users = 0; //zamykam pokój
+			close(thread_data->cfd); //koniec wątku
 			return 1;
 			
 		    } 
                 }
-                //else 
-		if (roomsCount[i].turn == 1)
+		if (roomsCount[i].turn == 1) //jestem graczem który dołączył do pokoju i robie to samo co ten drugi :)
                 {
 		    bzero(&buffer, sizeof buffer);
 		    while(recv(thread_data->cfd, buffer, 3, 0) > 0)
@@ -238,7 +238,7 @@ void handleConnection(int server_socket_descriptor) {
     if (create_result <0 ){
        printf("Blad przy probie utworzenia watku, kod bledu: %d\n", create_result);
        exit(-1);
-    }{printf("Watek jest");}
+    }
 
     pthread_detach(thread1);
 }
@@ -251,7 +251,6 @@ int main(int argc, char* argv[])
    int listen_result;
    char reuse_addr_val = 1;
    struct sockaddr_in server_address;
-   int port = 1234;
 
    //inicjalizacja gniazda serwera
    memset(&roomsCount, 0, sizeof(struct Room));
@@ -265,10 +264,9 @@ int main(int argc, char* argv[])
    {
        fprintf(stderr, "%s: Blad przy probie utworzenia gniazda..\n", argv[0]);
        exit(1);
-   }else{printf("Gniazdo utworzone");}
+   }
 
    setsockopt(server_socket_descriptor, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse_addr_val, sizeof(reuse_addr_val));
-printf("ok");
 
    bind_result = bind(server_socket_descriptor, (struct sockaddr*)&server_address, sizeof(server_address));
    if (bind_result < 0)
