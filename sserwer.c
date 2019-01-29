@@ -12,8 +12,8 @@
 #include <time.h>
 #include <pthread.h>
 
-#define USER_QUEUE_SIZE 8 //user_number
-#define ROOM_QUEUE_SIZE 4 //user_number
+#define USER_QUEUE_SIZE 200 //user_number
+#define ROOM_QUEUE_SIZE 10 //user_number
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -59,24 +59,10 @@ void add_user()
     pthread_mutex_unlock(&count_mutex);
 }
 
-void remove_user()
-{
-    pthread_mutex_lock(&count_mutex);
-    usersCreated = usersCreated - 1;
-    pthread_mutex_unlock(&count_mutex);
-}
-
 void add_room()
 {
     pthread_mutex_lock(&count_mutex);
     roomsCreated = roomsCreated + 1;
-    pthread_mutex_unlock(&count_mutex);
-}
-
-void remove_room()
-{
-    pthread_mutex_lock(&count_mutex);
-    roomsCreated = roomsCreated - 1;
     pthread_mutex_unlock(&count_mutex);
 }
 
@@ -90,7 +76,7 @@ void MUser(struct thread_data_t *thread_data)
 }
 
 
-void MRoom(struct thread_data_t *thread_data)
+int MRoom(struct thread_data_t *thread_data)
 {
     int i, j;
 
@@ -108,10 +94,10 @@ void MRoom(struct thread_data_t *thread_data)
             roomsCount[i].users++;
 	    roomsCount[i].turn++;
             pthread_mutex_unlock(&mutex);
-            strcpy(buffer, "w");
+            strcpy(buffer, "w"); //jestes graczem white
 	    send(thread_data->cfd, buffer, strlen(buffer), 0);
             bzero(&buffer, sizeof buffer);
-            return;
+            return 0;
         }
 	
         else if (roomsCount[i].users == 0)
@@ -127,21 +113,22 @@ void MRoom(struct thread_data_t *thread_data)
             add_room();
 	    roomsCount[i].s = 0;
             pthread_mutex_unlock(&mutex);
-            strcpy(buffer, "b");
+            strcpy(buffer, "b"); //jestes graczem black
 	    send(thread_data->cfd, buffer, strlen(buffer), 0);
             bzero(&buffer, sizeof buffer);
-            return;
+            return 0;
         }
     }
     pthread_mutex_unlock(&mutex);
-    strcpy(buffer, "o");
+    strcpy(buffer, "o"); //brak gry
     send(thread_data->cfd, buffer, strlen(buffer), 0);
     bzero(&buffer, sizeof buffer);
+    close(thread_data->cfd);
+    return 1;
 }
 
 int RGame(struct thread_data_t *thread_data){
     int i, j;
-    int read_size;
 
     for (i = 0; i < ROOM_QUEUE_SIZE; i++)
     {
@@ -151,35 +138,65 @@ int RGame(struct thread_data_t *thread_data){
                 if (roomsCount[i].turn == 0)
                 {
 		    bzero(&buffer, sizeof buffer);
-		    while(read_size = recv(thread_data->cfd, buffer, 3, 0) > 0)
+		    while(recv(thread_data->cfd, buffer, 3, 0) > 0) //wysyła co dostał
 		    {
 			send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
 			bzero(&buffer, sizeof buffer);
 		    }
- 
+		    if(recv(thread_data->cfd, buffer, 3, 0) == 0) //rozłączył się 
+		    {
+			strcpy(buffer, "d");
+	    		send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+            		bzero(&buffer, sizeof buffer);
+			close(thread_data->cfd);
+			roomsCount[i].users = 0;
+			return 1;
+		    }
+		    if(recv(thread_data->cfd, buffer, 3, 0) < 0) //nie może się połaczyć
+		    {
+			strcpy(buffer, "e");
+	    		send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+            		bzero(&buffer, sizeof buffer);
+			close(thread_data->cfd);
+			roomsCount[i].users = 0;
+			return 1;
+			
+		    } 
                 }
                 //else 
 		if (roomsCount[i].turn == 1)
                 {
 		    bzero(&buffer, sizeof buffer);
-		    while(read_size = recv(thread_data->cfd, buffer, 3, 0) > 0)
+		    while(recv(thread_data->cfd, buffer, 3, 0) > 0)
 		    {
-			/*if(read_size == 0)
-            		{
-                		puts("Client disconnected");
-                		fflush(stdout);
-            		}
-			else if(read_size == -1)
-            		{
-                		perror("recv failed");
-           		}*/
 			send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
 			bzero(&buffer, sizeof buffer);
+                    }
+		    if(recv(thread_data->cfd, buffer, 3, 0) == 0)
+		    {
+			strcpy(buffer, "d");
+	    		send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+            		bzero(&buffer, sizeof buffer);
+			close(thread_data->cfd);
+			roomsCount[i].users = 0;
+			return 1;
+		    }
+		    if(recv(thread_data->cfd, buffer, 3, 0) < 0)
+		    {
+			strcpy(buffer, "e");
+	    		send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+            		bzero(&buffer, sizeof buffer);
+			close(thread_data->cfd);
+			roomsCount[i].users = 0;
+			return 1;
+		    } 
                 }
+	
          }
+    
       }
-    }
-
+   }
+return 0;
 }
 
 //funkcja opisujaca zachowanie watku - musi przyjmowac argument typu (void *) i zwracac (void *)
@@ -192,13 +209,12 @@ void *ThreadBehavior(void *t_data)
     MUser(th_data);
     pthread_mutex_unlock(&mutex);
 
-    MRoom(th_data);
+    if (MRoom(th_data) != 1){
+    	while(RGame(th_data) != 1){
+    	RGame(th_data);}
+    }
 
-    //while(strcmp(buffer,"e") != 0 || strcmp(buffer,"d") != 0){
-    while(1){
-    RGame(th_data);}
-
-    close(th_data->cfd);
+    //close(th_data->cfd);
     free(t_data);
     pthread_exit(NULL);
 }
