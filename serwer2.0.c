@@ -175,10 +175,8 @@ int RGame(struct thread_data_t *thread_data){
           
          for (int n = 0; n < 8; n++) //sprawdzam czy mam się jak ruszyć
 		      for (int m = 0; m < 8; m++)
-			      if (roomsCount[i].board[n][m] == '1')
-			      {
-					      if (n < 7 && m > 0 && m <= 7 && roomsCount[i].board[n + 1][m - 1] == '0') {continue;}
-					      if (n < 7 && m > 0 && m <= 7 && roomsCount[i].board[n + 1][m + 1] == '0') {continue;}
+			      if (roomsCount[i].board[n][m] == '1'){
+					      if ((n > 6 && m < 1 && m > 7 && roomsCount[i].board[n + 1][m - 1] != '0') || (n > 6 && m <1 && m >7 && roomsCount[i].board[n + 1][m + 1] != '0')){
                
                   send(roomsCount[i].ingame[1].fd, "www", 3, 0); //graatuluje przeciwnikowi wygrane
                   send(roomsCount[i].ingame[0].fd, "lll", 3, 0); //wysyłam do siebie że przegrałem
@@ -188,6 +186,7 @@ int RGame(struct thread_data_t *thread_data){
 			            return 1; 
              }
           
+	}
 			  if (roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='1' && (buffer[2] != '3' && buffer[2] != '4')){ //sprawdzam czy poprawny ruch
 
 				  int x = buffer[0] - '1'; //pozycja pionka
@@ -298,10 +297,8 @@ int RGame(struct thread_data_t *thread_data){
           
           for (int n = 0; n < 8; n++) //sprawdzam czy mam się jak ruszyć
 		      for (int m = 0; m < 8; m++)
-			      if (roomsCount[i].board[n][m] == '2')
-			      {
-					      if (n > 0 && m > 0 && m <= 7 && roomsCount[i].board[n - 1][m - 1] == '0') {continue;}
-					      if (n > 0 && m > 0 && m <= 7 && roomsCount[i].board[n - 1][m + 1] == '0') {continue;}
+			      if (roomsCount[i].board[n][m] == '2'){
+					      if ((n < 1 && m < 1 && m > 7 && roomsCount[i].board[n - 1][m - 1] != '0')|| (n <1 && m <1 && m >7 && roomsCount[i].board[n - 1][m + 1] != '0')){
                   send(roomsCount[i].ingame[0].fd, "www", 3, 0); //graatuluje przeciwnikowi wygrane
                   send(roomsCount[i].ingame[1].fd, "lll", 3, 0); //wysyłam do siebie że przegrałem
                   bzero(&buffer, sizeof buffer); //czyszcze bufor
@@ -309,9 +306,13 @@ int RGame(struct thread_data_t *thread_data){
 			            close(thread_data->cfd); //koniec wątku
 			            return 1; 
              }
-          
-          if (roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='2' && (buffer[2] != '1' && buffer[2] != '2')){
-				    int x = buffer[0] - '1';
+	}
+
+          send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+
+          /*if (roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='2' && (buffer[2] != '1' && buffer[2] != '2')){
+			     
+			      int x = buffer[0] - '1';
 			      int y = buffer[1] - '1';
 				    if (buffer[2] == '3') //ruch pn-wsch
 				    {
@@ -380,7 +381,7 @@ int RGame(struct thread_data_t *thread_data){
 					 bzero(&buffer, sizeof buffer);
 					 strcpy(buffer, "x");
 	    		 send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);	
-				   }
+				   }*/
         bzero(&buffer, sizeof buffer);
         }
 		    if(recv(thread_data->cfd, buffer, 3, 0) == 0)
