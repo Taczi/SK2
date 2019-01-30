@@ -33,6 +33,7 @@ struct User
     char ip[15];
     int fd;
     int id;
+    ////kontrola gry
     int pionki;
     char win;
 };
@@ -44,6 +45,7 @@ struct Room
     int roomId;
     int users;
     struct User ingame[2];
+    ////kontrola gry
     char board[8][8];
 };
 
@@ -120,18 +122,18 @@ int MRoom(struct thread_data_t *thread_data)
 	    send(thread_data->cfd, buffer, strlen(buffer), 0);
             bzero(&buffer, sizeof buffer);
 
-	    for (int i = 0; i < 8; i++)
-		for (int j = 0; j < 8; j++)
+	    for (int a = 0; a < 8; a++)
+		for (int b = 0; b < 8; b++)
 		{
-		if((i%2 != 0 && j%2 == 0) || (i%2 == 0 && j%2 != 0)){
-			if(i<2)
-				roomsCount[i].board[i][j] = '1'; //tworca pokoju "x"
-			if(i>5)
-				roomsCount[i].board[i][j] = '2'; //przeciwnik "o"
-			if(i>1 && i <6)
-				roomsCount[i].board[i][j] = '0';} //puste
-		if((i%2 == 0 && j%2 == 0) || (i%2 != 0 && j%2 != 0))
-			roomsCount[i].board[i][j] = '9';//pola niedostepne	
+		if((a%2 != 0 && b%2 == 0) || (a%2 == 0 && b%2 != 0)){
+			if(a<2)
+				roomsCount[i].board[a][b] = '1'; //tworca pokoju "x"
+			if(a>5)
+				roomsCount[i].board[a][b] = '2'; //przeciwnik "o"
+			if(a>1 && i <6)
+				roomsCount[i].board[a][b] = '0';} //puste
+		if((a%2 == 0 && b%2 == 0) || (a%2 != 0 && b%2 != 0))
+			roomsCount[i].board[a][b] = '9';//pola niedostepne	
 		}
 	    return 0;
         }	
@@ -155,15 +157,45 @@ int RGame(struct thread_data_t *thread_data){
     {
       if (roomsCount[i].turn == 0) //jestem graczem który stworzył pokój
       {
-		    bzero(&buffer, sizeof buffer);
+		    bzero(&buffer, sizeof buffer); //czyszcze bufor
 		    while(recv(thread_data->cfd, buffer, 3, 0) > 0) //wysyłam przeciwnikowi moja wiadomość
 		    {
-			  if ((roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='1' && (buffer[2] != '3' && buffer[2] != '4')) || roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1'] == '1'){
-				  int x = buffer[0] - '1';
-			    int y = buffer[1] - '1';
-				  if (buffer[2] == '1')
+			/*if(roomsCount[i].board[1][0]=='1')
+				send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+			else
+				send(roomsCount[i].ingame[0].fd, "x", 1, 0);*/
+        if(roomsCount[i].ingame[0].pionki == 0){ //sprawdzam czy wgl mam czym grac
+	    	  send(roomsCount[i].ingame[1].fd, "www", 3, 0); //graatuluje przeciwnikowi wygrane
+          send(roomsCount[i].ingame[0].fd, "lll", 3, 0); //wysyłam do siebie że przegrałem
+          bzero(&buffer, sizeof buffer); //czyszcze bufor
+			    roomsCount[i].users = 0; //zamykam pokój
+			    close(thread_data->cfd); //koniec wątku
+			    return 1;
+        }
+          
+         for (int n = 0; n < 8; n++) //sprawdzam czy mam się jak ruszyć
+		      for (int m = 0; m < 8; m++)
+			      if (roomsCount[i].board[n][m] == '1')
+			      {
+					      if (n < 7 && m > 0 && m <= 7 && roomsCount[i].board[n + 1][m - 1] == '0') {continue;}
+					      if (n < 7 && m > 0 && m <= 7 && roomsCount[i].board[n + 1][m + 1] == '0') {continue;}
+               
+                  send(roomsCount[i].ingame[1].fd, "www", 3, 0); //graatuluje przeciwnikowi wygrane
+                  send(roomsCount[i].ingame[0].fd, "lll", 3, 0); //wysyłam do siebie że przegrałem
+                  bzero(&buffer, sizeof buffer); //czyszcze bufor
+			            roomsCount[i].users = 0; //zamykam pokój
+			            close(thread_data->cfd); //koniec wątku
+			            return 1; 
+             }
+          
+			  if (roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='1' && (buffer[2] != '3' && buffer[2] != '4')){ //sprawdzam czy poprawny ruch
+
+				  int x = buffer[0] - '1'; //pozycja pionka
+			    int y = buffer[1] - '1'; //pozycja pionka
+
+				  if (buffer[2] == '1') //ruch pd-zach
 				  {
-					  if (x + 1 <= 7 && y - 1 >= 0 && roomsCount[i].board[x + 1][y - 1] == '0')
+					  if (x + 1 <= 7 && y - 1 >= 0 && roomsCount[i].board[x + 1][y - 1] == '0') //ruch bez bicia
 					  {
 						  if (x + 1 == 7)
 							  roomsCount[i].board[x + 1][y - 1] = '3';
@@ -173,10 +205,26 @@ int RGame(struct thread_data_t *thread_data){
 							  else
 								  roomsCount[i].board[x + 1][y - 1] = '1';
 						  roomsCount[i].board[x][y] = '0';
-						  send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+						  send(roomsCount[i].ingame[0].fd, "r", 1, 0); //potwierdzam sobie poprawność ruchu
+						  send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0); //wysyłam ruch przeciwnikowi
 					  }
+            if (x + 2 <= 7 && y - 2 >= 0 && roomsCount[i].board[x + 1][y - 1] != '1' && (roomsCount[i].board[x + 1][y - 1] != '3' || roomsCount[i].board[x + 1][y - 1] != '1') && roomsCount[i].board[x + 2][y - 2] == '0') //ruch z biciem
+            {
+						if (x + 2 == 7)
+							roomsCount[i].board[x + 2][y - 2] = '3';
+						else
+							if (roomsCount[i].board[x][y] == '3')
+								roomsCount[i].board[x + 2][y - 2] = '1';
+							else
+								roomsCount[i].board[x + 2][y - 2] = '1';
+						roomsCount[i].board[x][y] = '0';
+						roomsCount[i].board[x + 1][y - 1] = '0';
+						roomsCount[i].ingame[1].pionki--; //usuwam pionek przeciwnika
+						send(roomsCount[i].ingame[0].fd, "r", 1, 0);
+						send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+            }
 			    }
-				  if (buffer[2] == '2')
+				  if (buffer[2] == '2') //ruch pd-wsch (analogicznie)
 				  {
 					  if (x + 1 <= 7 && y + 1 <= 7 && roomsCount[i].board[x + 1][y + 1] == '0')
 					  {
@@ -188,35 +236,47 @@ int RGame(struct thread_data_t *thread_data){
 							  else
 								  roomsCount[i].board[x + 1][y + 1] = '1';
 						  roomsCount[i].board[x][y] = '0';
+						  send(roomsCount[i].ingame[0].fd, "r", 1, 0);
 						  send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
 					  }
 			    }
-				  else{
-					    bzero(&buffer, sizeof buffer);
-					    strcpy(buffer, "x");  //popraw ruch
-	    				send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
-				  }
-        }
-          else{
-					    bzero(&buffer, sizeof buffer);
-					    strcpy(buffer, "x");  //popraw ruch
-	    				send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);}
-			    bzero(&buffer, sizeof buffer);
+          if (x + 2 <= 7 && y + 2 <= 7 && roomsCount[i].board[x + 1][y + 1] != '1' && (roomsCount[i].board[x + 1][y + 1] != '3' || roomsCount[i].board[x + 1][y + 1] != '1') && roomsCount[i].board[x + 2][y + 2] == '0')	
+					{
+						if (x + 2 == 7)
+							roomsCount[i].board[x + 2][y + 2] = '3';
+						else
+							if (roomsCount[i].board[x][y] == '3')
+								roomsCount[i].board[x + 2][y + 2] = '1';
+							else
+								roomsCount[i].board[x + 2][y + 2] = '1';
+						roomsCount[i].board[x][y] = '0';
+						roomsCount[i].board[x + 1][y + 1] = '0';
+						roomsCount[i].ingame[1].pionki--;
+            send(roomsCount[i].ingame[0].fd, "r", 1, 0);
+						send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+          }
+		    }
+        else{
+					    bzero(&buffer, sizeof buffer); //czyszcze bufor
+					    strcpy(buffer, "x");  //wysyłam do siebie prośbe o poprawe ruchu
+	    				send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0); 
+            }
+        bzero(&buffer, sizeof buffer); //czyszcze bufor
 		    }
 		    if(recv(thread_data->cfd, buffer, 3, 0) == 0) //rozłączam się 
 		    {
-			    strcpy(buffer, "d"); 
+			    strcpy(buffer, "d"); //wysyłam przeciwnikowi wiadomosc że ucieklem
 	    		send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
-          bzero(&buffer, sizeof buffer);
+          bzero(&buffer, sizeof buffer); //czyszcze bufor
 			    roomsCount[i].users = 0; //zamykam pokój
 			    close(thread_data->cfd); //koniec wątku
 			    return 1;
 		    }
 		    if(recv(thread_data->cfd, buffer, 3, 0) < 0) //nie mogę się połaczyć
 		    {
-			    strcpy(buffer, "e");
+			    strcpy(buffer, "e"); //wysyłam przeciwnikowi wiadomość że nie mogę z nim grac
 	    	  send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
-          bzero(&buffer, sizeof buffer);
+          bzero(&buffer, sizeof buffer); //czyszcze bufor
 			    roomsCount[i].users = 0; //zamykam pokój
 			    close(thread_data->cfd); //koniec wątku
 			    return 1;
@@ -227,10 +287,33 @@ int RGame(struct thread_data_t *thread_data){
 		    bzero(&buffer, sizeof buffer);
 		    while(recv(thread_data->cfd, buffer, 3, 0) > 0)
 		    {
-			    if ((roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='2' && (buffer[2] != '1' && buffer[2] != '2')) || roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1'] == '2'){
+			    if(roomsCount[i].ingame[1].pionki == 0){
+	    	    send(roomsCount[i].ingame[0].fd, "www", 3, 0);
+            send(roomsCount[i].ingame[1].fd, "lll", 3, 0);
+            bzero(&buffer, sizeof buffer);
+			      roomsCount[i].users = 0;
+			      close(thread_data->cfd);
+			      return 1;
+          }
+          
+          for (int n = 0; n < 8; n++) //sprawdzam czy mam się jak ruszyć
+		      for (int m = 0; m < 8; m++)
+			      if (roomsCount[i].board[n][m] == '2')
+			      {
+					      if (n > 0 && m > 0 && m <= 7 && roomsCount[i].board[n - 1][m - 1] == '0') {continue;}
+					      if (n > 0 && m > 0 && m <= 7 && roomsCount[i].board[n - 1][m + 1] == '0') {continue;}
+                  send(roomsCount[i].ingame[0].fd, "www", 3, 0); //graatuluje przeciwnikowi wygrane
+                  send(roomsCount[i].ingame[1].fd, "lll", 3, 0); //wysyłam do siebie że przegrałem
+                  bzero(&buffer, sizeof buffer); //czyszcze bufor
+			            roomsCount[i].users = 0; //zamykam pokój
+			            close(thread_data->cfd); //koniec wątku
+			            return 1; 
+             }
+          
+          if (roomsCount[i].board[buffer[0] - '1'][buffer[1] - '1']=='2' && (buffer[2] != '1' && buffer[2] != '2')){
 				    int x = buffer[0] - '1';
 			      int y = buffer[1] - '1';
-				    if (buffer[2] == '3')
+				    if (buffer[2] == '3') //ruch pn-wsch
 				    {
 					    if (x - 1 <= 7 && y + 1 <=7 && roomsCount[i].board[x + 1][y - 1] == '0')
 					    {
@@ -243,9 +326,25 @@ int RGame(struct thread_data_t *thread_data){
 								    roomsCount[i].board[x - 1][y + 1] = '2';
 						    roomsCount[i].board[x][y] = '0';
 						    send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+						    send(roomsCount[i].ingame[1].fd,  "r", 1, 0);
 					    }
+              if (x - 2 >= 0 && y + 2 <= 7 && roomsCount[i].board[x - 1][y + 1] != '2' && (roomsCount[i].board[x - 1][y + 1] != '4' || roomsCount[i].board[x - 1][y + 1] != '2') && roomsCount[i].board[x - 2][y + 2] == '0')
+					    {
+						    if (x - 2 == 0)							//ruch z biciem
+							    roomsCount[i].board[x - 2][y + 2] = '4';
+						    else
+							    if (roomsCount[i].board[x][y] == '4')
+								    roomsCount[i].board[x - 2][y + 2] = '2';
+							    else
+								    roomsCount[i].board[x - 2][y + 2] = '2';
+						      roomsCount[i].board[x][y] = '0';
+						      roomsCount[i].board[x - 1][y + 1] = '0';
+						      roomsCount[i].ingame[0].pionki--;
+                  send(roomsCount[i].ingame[1].fd, "r", 1, 0);
+						      send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+              }
 			      }
-				    if (buffer[2] == '4')
+				    if (buffer[2] == '4') //ruch pn-zach
 				    {
 					    if (x - 1 <= 7 && y - 1 <= 7 && roomsCount[i].board[x - 1][y - 1] == '0')
 					    {
@@ -258,20 +357,31 @@ int RGame(struct thread_data_t *thread_data){
 								    roomsCount[i].board[x - 1][y - 1] = '1';
 						     roomsCount[i].board[x][y] = '0';
 						     send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+						     send(roomsCount[i].ingame[1].fd,  "r", 1, 0);
                }
-			        }
-				      else{
-					      bzero(&buffer, sizeof buffer);
-					      strcpy(buffer, "x");  //popraw ruch
-	    				  send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
-				        }
+			     }
+           if (x - 2 >= 0 && y - 2 >= 0 && roomsCount[i].board[x - 1][y - 1] != '2' && (roomsCount[i].board[x - 1][y - 1] != '4' || roomsCount[i].board[x - 1][y - 1] != '2') && roomsCount[i].board[x - 2][y - 2] == '0')
+					{
+						if (x - 2 == 0)
+							roomsCount[i].board[x - 2][y - 2] = '4';
+						else
+							if (roomsCount[i].board[x][y] == '4')
+								roomsCount[i].board[x - 2][y - 2] = '2';
+							else
+								roomsCount[i].board[x - 2][y - 2] = '2';
+						roomsCount[i].board[x][y] = '0';
+						roomsCount[i].board[x - 1][y - 1] = '0';
+						roomsCount[i].ingame[0].pionki--;
+            send(roomsCount[i].ingame[1].fd, "r", 1, 0);
+						send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
           }
-          else{
+         }
+         else{
 					 bzero(&buffer, sizeof buffer);
-					 strcpy(buffer, "x");  //popraw ruch
-	    		 send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+					 strcpy(buffer, "x");
+	    		 send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);	
 				   }
-			    bzero(&buffer, sizeof buffer);
+        bzero(&buffer, sizeof buffer);
         }
 		    if(recv(thread_data->cfd, buffer, 3, 0) == 0)
 		    {
