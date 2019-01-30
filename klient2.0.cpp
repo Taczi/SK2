@@ -25,9 +25,9 @@ char buffer[50];
 int connection_socket_descriptor;
 char sign;
 
-struct gracz{
+/*struct gracz{
 	bool wygrany;
-};
+};*/
 
 void Make_Board(char arr[8][8])
 {
@@ -76,15 +76,15 @@ bool sprawdz_poprawnosc_ruchu(char plansza[8][8], char ruch_gracza[3])
 
 int RunGame()
 {
-	gracz A;
-	A.wygrany = false;
-	gracz B;
-	B.wygrany = false;
+	//gracz A;
+	//A.wygrany = false;
+	//gracz B;
+	//B.wygrany = false;
 
 	int x, y;
 	char ruch_gracza[3];
 	char buff[3];
-	bool koniec_gry = false;
+	//bool koniec_gry = false;
 
 	char plansza[8][8];
 	Make_Board(plansza);
@@ -139,8 +139,26 @@ int RunGame()
 				for (int i = 0 ; i < 3 ; i++) 
 					ruch_gracza[i] = buff[i];
 
-			if (buff[0] == 'e' || buff[0] == 'd' || buff[0] == 'q')
+			if (buff[0] == 'e'){
+				cout<<"PRZECIWNIK MA PROBLEMY Z POLACZENIEM."<<endl;
             			break;
+			}
+			if (buff[0] == 'd'){
+				cout<<"PRZECIWNIK ZAMKNAŁ OKNO."<<endl;
+            			break;
+			}
+			if (buff[0] == 'q'){
+				cout<<"PRZECIWNIK ZAKONCZYŁ GRE."<<endl;
+            			break;
+			}
+			if (buff[0] == 'w'){
+				cout<<"WYGRALES."<<endl;
+            			break;
+			}
+			if (buff[0] == 'l'){
+				cout<<"PRZEGRALES."<<endl;
+            			break;
+			}
 			}
 
 			x = ruch_gracza[0] - '1';
@@ -159,6 +177,19 @@ int RunGame()
 								plansza[x + 1][y - 1] = pionek_gracza;
 						plansza[x][y] = ' ';
 					}
+					if (x + 2 <= 7 && y - 2 >= 0 && plansza[x + 1][y - 1] != pionek_gracza && (plansza[x + 1][y - 1] != pionek_gracza + 32 || plansza[x + 1][y - 1] != pionek_gracza - 32) && plansza[x + 2][y - 2] == ' ')
+					{
+						if (x + 2 == 7 && pionek_gracza == 'x')
+							plansza[x + 2][y - 2] = 'X';
+						else
+							if (plansza[x][y] == 'X' || plansza[x][y] == 'O')
+								plansza[x + 2][y - 2] = pionek_gracza - 32;
+							else
+								plansza[x + 2][y - 2] = pionek_gracza;
+						plansza[x][y] = ' ';
+						plansza[x + 1][y - 1] = ' ';
+						//usun_pionek(&A, &B, kogo_runda);
+}
 				}
 				if (ruch_gracza[2] == '2')
 				{
@@ -174,6 +205,19 @@ int RunGame()
 						plansza[x][y] = ' ';
 
 					}
+					if (x + 2 <= 7 && y + 2 <= 7 && plansza[x + 1][y + 1] != pionek_gracza && (plansza[x + 1][y + 1] != pionek_gracza + 32 || plansza[x + 1][y + 1] != pionek_gracza - 32) && plansza[x + 2][y + 2] == ' ')	//warunki bicia
+					{
+						if (x + 2 == 7 && pionek_gracza == 'x')							//ruch z biciem
+							plansza[x + 2][y + 2] = 'X';
+						else
+							if (plansza[x][y] == 'X' || plansza[x][y] == 'O')
+								plansza[x + 2][y + 2] = pionek_gracza - 32;
+							else
+								plansza[x + 2][y + 2] = pionek_gracza;
+						plansza[x][y] = ' ';
+						plansza[x + 1][y + 1] = ' ';
+						//usun_pionek(&A, &B, kogo_runda);
+}
 
 				}
 				if (ruch_gracza[2] == '3')
@@ -189,6 +233,18 @@ int RunGame()
 								plansza[x - 1][y + 1] = pionek_gracza;
 						plansza[x][y] = ' ';
 					}
+					if (x - 2 >= 0 && y + 2 <= 7 && plansza[x - 1][y + 1] != pionek_gracza && (plansza[x - 1][y + 1] != pionek_gracza + 32 || plansza[x - 1][y + 1] != pionek_gracza - 32) && plansza[x - 2][y + 2] == ' ')	//warunki bicia
+					{
+						if (x - 2 == 0 && pionek_gracza == 'o')							//ruch z biciem
+							plansza[x - 2][y + 2] = 'O';
+						else
+							if (plansza[x][y] == 'X' || plansza[x][y] == 'O')
+								plansza[x - 2][y + 2] = pionek_gracza - 32;
+							else
+								plansza[x - 2][y + 2] = pionek_gracza;
+						plansza[x][y] = ' ';
+						plansza[x - 1][y + 1] = ' ';
+}
 				}
 				if (ruch_gracza[2] == '4')
 				{
@@ -204,6 +260,18 @@ int RunGame()
 						plansza[x][y] = ' ';
 
 					}
+					if (x - 2 >= 0 && y - 2 >= 0 && plansza[x - 1][y - 1] != pionek_gracza && (plansza[x - 1][y - 1] != pionek_gracza + 32 || plansza[x - 1][y - 1] != pionek_gracza - 32) && plansza[x - 2][y - 2] == ' ')	//warunki bicia
+					{
+						if (x - 2 == 0 && pionek_gracza == 'o')							//ruch z biciem
+							plansza[x - 2][y - 2] = 'O';
+						else
+							if (plansza[x][y] == 'X' || plansza[x][y] == 'O')
+								plansza[x - 2][y - 2] = pionek_gracza - 32;
+							else
+								plansza[x - 2][y - 2] = pionek_gracza;
+						plansza[x][y] = ' ';
+						plansza[x - 1][y - 1] = ' ';
+}
         		      }
 	}
 	return 0;
