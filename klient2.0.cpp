@@ -65,7 +65,7 @@ void Now_Player(char kogo_runda,char pionek_gracza){
 		cout << "Twoj ruch:\t";
 }
 
-bool sprawdz_poprawnosc_ruchu(char plansza[8][8], char ruch_gracza[3], char kogo_runda,bool wymagane_bicie)
+bool sprawdz_poprawnosc_ruchu(char plansza[8][8], char ruch_gracza[3])
 {
 	if (ruch_gracza[0] >= '1'&&ruch_gracza[0] <= '8')
 		if (ruch_gracza[1] >= '1'&&ruch_gracza[1] <= '8')
@@ -73,79 +73,6 @@ bool sprawdz_poprawnosc_ruchu(char plansza[8][8], char ruch_gracza[3], char kogo
 				return true;
 	return false;
 }
-
-
-/*bool czy_wymagane_bicie(char plansza[8][8], char pionek_gracza)
-{
-	for (int i = 0; i < 8; i++)
-		for (int j = 0; j < 8; j++)
-		{
-			if (plansza[i][j] == pionek_gracza)
-			{
-				//sprawdzanie czy na drodze pionka stoi pionek rozny od niego, jego krolowej i spacji, oraz czy za nim jest puste pole
-				if (i + 2 < 8 && j + 2 < 8 && plansza[i + 1][j + 1] != pionek_gracza && (plansza[i + 1][j + 1] != pionek_gracza + 32 || plansza[i + 1][j + 1] != pionek_gracza - 32 )&& plansza[i + 1][j + 1] != ' ' && plansza[i + 2][j + 2] == ' ')
-					return true;
-				if (i - 2 >= 0 && j + 2 < 8 && plansza[i - 1][j + 1] != pionek_gracza && (plansza[i - 1][j + 1] != pionek_gracza + 32 || plansza[i - 1][j + 1] != pionek_gracza - 32 ) && plansza[i - 1][j + 1] != ' ' && plansza[i - 2][j + 2] == ' ')
-					return true;
-				if (i + 2 < 8 && j - 2 >= 0 && plansza[i + 1][j - 1] != pionek_gracza && (plansza[i + 1][j - 1] != pionek_gracza + 32 || plansza[i + 1][j - 1] != pionek_gracza - 32 ) && plansza[i + 1][j - 1] != ' ' && plansza[i + 2][j - 2] == ' ')
-					return true;
-				if (i - 2 >= 0 && j - 2 >= 0 && plansza[i - 1][j - 1] != pionek_gracza && (plansza[i - 1][j - 1] != pionek_gracza + 32 || plansza[i - 1][j - 1] != pionek_gracza - 32 ) && plansza[i - 1][j - 1] != ' ' && plansza[i - 2][j - 2] == ' ')
-					return true;
-			}
-		}
-	return false;
-}*/
-
-/*void usun_pionek(gracz *A, gracz *B, char kogo_ruch)
-{
-	if (kogo_ruch == 'A')
-		B->ilosc_pionkow--;
-	else
-		A->ilosc_pionkow--;
-}*/
-
-/*bool sprawdz_czy_koniec_gry(gracz *A, gracz *B)
-{
-	if (A->ilosc_pionkow == 0)
-	{
-		B->wygrany = true;
-		return true;
-	}
-	if (B->ilosc_pionkow == 0)
-	{
-		A->wygrany = true;
-		return true;
-	}
-	return false;
-}*/
-
-/*bool czy_mozliwy_ruch(char arr[8][8], char pionek_gracza)
-{
-	for (int i = 0; i < 8; i++){
-		for (int j = 0; j < 8; j++)
-		{
-			if (arr[i][j] == pionek_gracza)
-			{
-				if (pionek_gracza == 'x')
-				{
-					if (i < 7 && j > 0 && j <= 7 && arr[i + 1][j - 1] == ' ')
-						return true;
-					if (i < 7 && j > 0 && j <= 7 && arr[i + 1][j + 1] == ' ')
-						return true;
-				}
-				if (pionek_gracza == 'o')
-				{
-					if (i > 0 && j > 0 && j <= 7 && arr[i - 1][j - 1] == ' ')
-						return true;
-					if (i > 0 && j > 0 && j <= 7 && arr[i - 1][j + 1] == ' ')
-						return true;
-				}
-			}
-
-		}
-  }
-	return false;
-}*/
 
 int RunGame()
 {
@@ -178,20 +105,46 @@ int RunGame()
 
 		if (kogo_runda == 'A'){
 			cin >> ruch_gracza;
-			send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
-			while(recv(connection_socket_descriptor, buff, sizeof(buff), 0)>0){};
-			while(buff[0] == 'x'){
-           			cout << endl << "Niepoprawny ruch, sprobuj jeszcze raz:\t";
+			if (ruch_gracza[0] == 'q'){
+				send(connection_socket_descriptor, "qqq", 3, 0);
+            			break;}	
+			while(!sprawdz_poprawnosc_ruchu(plansza, ruch_gracza)){
+				cout << endl << "Niepoprawny ruch, sprobuj jeszcze raz:\t";
+				bzero(&ruch_gracza, sizeof ruch_gracza);
 				cin >> ruch_gracza;
-				send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
-				while(recv(connection_socket_descriptor, buff, sizeof(buff), 0)>0){};
 			}
+			send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);	
+			while(recv(connection_socket_descriptor, buff, sizeof(buff), 0)!=10){
+				if(buff[0] == 'x'){
+					cout << endl << "Niepoprawny ruch, sprobuj jeszcze raz:\t";
+					bzero(&buff, sizeof buff);
+					cin >> ruch_gracza;
+					if (ruch_gracza[0] == 'q'){
+						send(connection_socket_descriptor, "qqq", 3, 0);
+            					break;}	
+					while(!sprawdz_poprawnosc_ruchu(plansza, ruch_gracza)){
+						cout << endl << "Niepoprawny ruch, sprobuj jeszcze raz:\t";
+						bzero(&ruch_gracza, sizeof ruch_gracza);
+						cin >> ruch_gracza;
+					}
+					send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
+				}
+				else
+					break;	
+			}
+
 		}
 		if (kogo_runda == 'B'){
 			while(recv(connection_socket_descriptor, buff, sizeof(buff), 0)!=3){};
-			for (int i = 0 ; i < 3 ; i++) {
-				ruch_gracza[i] = buff[i];}
+				for (int i = 0 ; i < 3 ; i++) 
+					ruch_gracza[i] = buff[i];
+
+			if (buff[0] == 'e' || buff[0] == 'd' || buff[0] == 'q')
+            			break;
 			}
+
+			x = ruch_gracza[0] - '1';
+			y = ruch_gracza[1] - '1';
 
 			if (ruch_gracza[2] == '1')
 				{
@@ -209,9 +162,9 @@ int RunGame()
 				}
 				if (ruch_gracza[2] == '2')
 				{
-					if (x + 1 <= 7 && y + 1 <= 7 && plansza[x + 1][y + 1] == ' ')		//warunki poruszania sie na puste pole
+					if (x + 1 <= 7 && y + 1 <= 7 && plansza[x + 1][y + 1] == ' ')
 					{
-						if (x + 1 == 7 && pionek_gracza == 'x')							//ruch bez biciem
+						if (x + 1 == 7 && pionek_gracza == 'x')
 							plansza[x + 1][y + 1] = 'X';
 						else
 							if(plansza[x][y]=='X'||plansza[x][y]=='O')
@@ -225,9 +178,9 @@ int RunGame()
 				}
 				if (ruch_gracza[2] == '3')
 				{
-					if (x - 1 <= 7 && y + 1 <= 7 && plansza[x - 1][y + 1] == ' ')		//warunki poruszania sie na puste pole
+					if (x - 1 <= 7 && y + 1 <= 7 && plansza[x - 1][y + 1] == ' ')
 					{
-						if (x - 1 == 0 && pionek_gracza == 'o')							//ruch bez biciem
+						if (x - 1 == 0 && pionek_gracza == 'o')
 							plansza[x - 1][y + 1] = 'O';
 						else
 							if (plansza[x][y] == 'X' || plansza[x][y] == 'O')
@@ -239,9 +192,9 @@ int RunGame()
 				}
 				if (ruch_gracza[2] == '4')
 				{
-					if (x - 1 <= 7 && y - 1 <= 7 && plansza[x - 1][y - 1] == ' ')		//warunki poruszania sie na puste pole
+					if (x - 1 <= 7 && y - 1 <= 7 && plansza[x - 1][y - 1] == ' ')
 					{
-						if (x - 1 == 0 && pionek_gracza == 'o')							//ruch bez biciem
+						if (x - 1 == 0 && pionek_gracza == 'o')
 							plansza[x - 1][y - 1] = 'O';
 						else
 							if (plansza[x][y] == 'X' || plansza[x][y] == 'O')
@@ -251,11 +204,7 @@ int RunGame()
 						plansza[x][y] = ' ';
 
 					}
-        }
-			  if (ruch_gracza[0] == 'q' || buff[0] == 'e' || buff[0] == 'd' || buff[0] == 'q'){
-				  if (kogo_runda == 'A'){
-					  send(connection_socket_descriptor, "qqq", 3, 0);
-            break;
+        		      }
 	}
 	return 0;
 }
@@ -315,17 +264,11 @@ int main (int argc, char *argv[])
 	kogo_runda = 'B';
 	pionek_gracza = 'o';
 	RunGame();
-	//cin >> ruch_gracza;
-	//send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
-	//cout <<sizeof(ruch_gracza);
-
    }
    if (sign == 'b'){
 	kogo_runda = 'A';
 	pionek_gracza = 'x';
 	RunGame();
-	//int ile = recv(connection_socket_descriptor, buff, sizeof(buff), 0);
-	//cout <<ile;
   }
   if (sign == 'o'){
 	cout<<"Bark wolnych pokoi."<<endl;
