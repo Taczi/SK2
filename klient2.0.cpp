@@ -91,12 +91,15 @@ int RunGame()
 
 	while (true) {			
     
-    		if (kogo_runda == 'A'){
+    		if (kogo_runda == 'A')
 		  kogo_runda='B';
-		  pionek_gracza='o';}
-	  	else{
+	  	else
 		  kogo_runda='A';
-		  pionek_gracza='x';}
+
+		if (pionek_gracza == 'x')
+		  pionek_gracza='o';
+	  	else
+		  pionek_gracza='x';
 					
 		system("cls");
 		Display_Board(plansza);
@@ -335,7 +338,7 @@ int main (int argc, char *argv[])
    }
    if (sign == 'b'){
 	kogo_runda = 'A';
-	pionek_gracza = 'x';
+	pionek_gracza = 'o';
 	RunGame();
   }
   if (sign == 'o'){
