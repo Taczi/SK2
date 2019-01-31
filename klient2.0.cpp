@@ -25,10 +25,15 @@ char buffer[50];
 int connection_socket_descriptor;
 char sign;
 
-/*struct gracz{
-	bool wygrany;
-};*/
+void SendMessage(char sign){
+    send(connection_socket_descriptor, &sign, sizeof(sign), 0);
+}
 
+void ReceiveMessage(){
+   int message = recv(connection_socket_descriptor, buffer, sizeof(buffer), 0);
+   sign = buffer[0];
+   buffer[message] = '\x0';
+}
 void Make_Board(char arr[8][8])
 {
 	for (int i = 0; i < 8; i++)
@@ -116,24 +121,26 @@ int RunGame()
 				bzero(&ruch_gracza, sizeof ruch_gracza);
 				cin >> ruch_gracza;
 			}
-			send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);	
-			while(recv(connection_socket_descriptor, buff, sizeof(buff), 0)!=10){
-				if(buff[0] == 'x'){
-					cout << endl << "Niepoprawny ruch, sprobuj jeszcze raz:\t";
-					bzero(&buff, sizeof buff);
-					cin >> ruch_gracza;
-					if (ruch_gracza[0] == 'q'){
-						send(connection_socket_descriptor, "qqq", 3, 0);
-            					break;}	
-					while(!sprawdz_poprawnosc_ruchu(plansza, ruch_gracza)){
-						cout << endl << "Niepoprawny ruch, sprobuj jeszcze raz:\t";
-						bzero(&ruch_gracza, sizeof ruch_gracza);
-						cin >> ruch_gracza;
-					}
-					send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
+			send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
+			bzero(&buff, sizeof buff);
+			while(1){
+			ReceiveMessage();
+  			if (sign == 'x'){
+				cout << endl << "xNiepoprawny ruch, sprobuj jeszcze raz:\t";
+				bzero(&buff, sizeof buff);
+				cin >> ruch_gracza;
+				if (ruch_gracza[0] == 'q'){
+					send(connection_socket_descriptor, "qqq", 3, 0);
+            				break;}	
+				while(!sprawdz_poprawnosc_ruchu(plansza, ruch_gracza)){
+					cout << endl << "xNiepoprawny ruch, sprobuj jeszcze raz:\t";
+					bzero(&ruch_gracza, sizeof ruch_gracza);
+					cin >> ruch_gracza;}
+				send(connection_socket_descriptor, ruch_gracza, sizeof(ruch_gracza), 0);
 				}
-				else
-					break;	
+			if (sign == 'r'){
+				break;
+				}
 			}
 
 		}
@@ -280,16 +287,6 @@ int RunGame()
 	return 0;
 }
 
-void SendMessage(char sign){
-    send(connection_socket_descriptor, &sign, sizeof(sign), 0);
-}
-
-void ReceiveMessage(){
-   int message = recv(connection_socket_descriptor, buffer, sizeof(buffer), 0);
-   sign = buffer[0];
-   buffer[message] = '\x0';
-}
-
 int main (int argc, char *argv[])
 {
 
@@ -333,12 +330,12 @@ int main (int argc, char *argv[])
    ReceiveMessage();
    if (sign == 'w'){
 	kogo_runda = 'B';
-	pionek_gracza = 'o';
+	pionek_gracza = 'x';
 	RunGame();
    }
    if (sign == 'b'){
 	kogo_runda = 'A';
-	pionek_gracza = 'o';
+	pionek_gracza = 'x';
 	RunGame();
   }
   if (sign == 'o'){
