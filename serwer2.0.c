@@ -262,8 +262,7 @@ int RGame(struct thread_data_t *thread_data){
 		    }
 		    if(recv(thread_data->cfd, buffer, 3, 0) == 0) //rozłączam się 
 		    {
-			    strcpy(buffer, "d"); //wysyłam przeciwnikowi wiadomosc że ucieklem
-	    		send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+			    send(roomsCount[i].ingame[1].fd, "ddd", 3, 0);
           bzero(&buffer, sizeof buffer); //czyszcze bufor
 			    roomsCount[i].users = 0; //zamykam pokój
 			    close(thread_data->cfd); //koniec wątku
@@ -271,8 +270,7 @@ int RGame(struct thread_data_t *thread_data){
 		    }
 		    if(recv(thread_data->cfd, buffer, 3, 0) < 0) //nie mogę się połaczyć
 		    {
-			    strcpy(buffer, "e"); //wysyłam przeciwnikowi wiadomość że nie mogę z nim grac
-	    	  send(roomsCount[i].ingame[1].fd, buffer, strlen(buffer), 0);
+			    send(roomsCount[i].ingame[1].fd, "eee", 3, 0);
           bzero(&buffer, sizeof buffer); //czyszcze bufor
 			    roomsCount[i].users = 0; //zamykam pokój
 			    close(thread_data->cfd); //koniec wątku
@@ -391,8 +389,7 @@ if (roomsCount[i].turn == 1) //jestem graczem który dołączył do pokoju i rob
 		    }
 		    if(recv(thread_data->cfd, buffer, 3, 0) == 0) //rozłączam się 
 		    {
-			    strcpy(buffer, "d");
-	    		send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+			    send(roomsCount[i].ingame[0].fd, "ddd", 3, 0);
           bzero(&buffer, sizeof buffer); 
 			    roomsCount[i].users = 0; 
 			    close(thread_data->cfd);
@@ -400,8 +397,7 @@ if (roomsCount[i].turn == 1) //jestem graczem który dołączył do pokoju i rob
 		    }
 		    if(recv(thread_data->cfd, buffer, 3, 0) < 0)
 		    {
-			    strcpy(buffer, "e"); 
-	    	  send(roomsCount[i].ingame[0].fd, buffer, strlen(buffer), 0);
+			    send(roomsCount[i].ingame[0].fd, "eee", 3, 0);
           bzero(&buffer, sizeof buffer); 
 			    roomsCount[i].users = 0; 
 			    close(thread_data->cfd); 
